@@ -1,6 +1,8 @@
 # anomaly_zone
 
-This is just a python3 interface for the anomaly_finder.py script written
+Contact: Tyler K. Chafin (tkchafin@uark.edu)
+
+This is my python3 interface for the anomaly_finder.py script written
 by CW Linkem (https://github.com/cwlinkem/anomaly_zone)
 
 If you use this, please cite the original publication:
