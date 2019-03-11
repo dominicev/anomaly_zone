@@ -12,6 +12,16 @@ in species trees and evidence for a misleading signal in higher-level skink phyl
 There is only one prerequisite which won't be available with your standard Python 3 installation:
 * [DendroPy](https://dendropy.org/)
 
+The easiest way to install this would be with conda:
+
+```
+conda install -c bioconda dendropy
+```
+or pip:
+```
+pip install dendropy
+```
+
 ## Usage
 View the help menu by calling anomaly_finder.py with the <-h> flag:
 
