@@ -1,6 +1,8 @@
 # anomaly_zone
 
-This is just a python3 interface for the anomaly_finder.py script written
+Contact: Tyler K. Chafin (tkchafin@uark.edu)
+
+This is my python3 interface for the anomaly_finder.py script written
 by CW Linkem (https://github.com/cwlinkem/anomaly_zone)
 
 If you use this, please cite the original publication:
@@ -191,3 +193,11 @@ Tree with anomalous pairs annotated as "AZ Event : Prop. BS"
 ########################DONE!############################
 ```
 Once again, you can paste these outputs into FigTree if the tree is too large for viewing via stdout.
+
+## Changelog
+11 March 2019
+- Ported to Python3 
+- Ported DendroPy code to DendroPy 4.0.0 (e.g. converted deprecated function calls)
+- Added basic argument parsing
+- Made bootstrap tree input optional
+- Created some graphical and text outputs (e.g. NEWICK)
