@@ -172,11 +172,14 @@ def getAnomalyLabels(tree, d):
 		if node.parent_node:
 			lab=str(node.edge.split_bitmask)
 			if lab in labelDict:
-				node.label=labelDict[str(lab)]
+				l = "\"" + labelDict[str(lab)] + "\""
+				node.label=l
 			else:
-				node.label="0"
+				lab = "\"" + "0" + "\""
+				node.label=lab
 		else:
-			node.label="0"
+			lab = "\"" + "0" + "\""
+			node.label=lab
 	return(tree2)
 		
 #function returns tree with AZ edge pairs labelled
