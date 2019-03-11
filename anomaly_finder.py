@@ -21,12 +21,16 @@ from dendropy.utility import bitprocessing
 
 def main():
 	params = parseArgs()
-
+	print("\n####################anomaly_finder.py######################\n")
 	#read trees
 	taxon_set = dendropy.TaxonNamespace()
-	if params.btrees:
-		trees = dendropy.TreeList.get_from_path(params.btrees, params.ftype, taxon_namespace = taxon_set)
+	print("Reading primary tree...", params.tree)
 	mrc = dendropy.Tree.get_from_path(src=params.tree, schema=params.ftype, taxon_namespace = taxon_set)
+	if params.btrees:
+		print("Reading bootstrap trees...", params.btrees)
+		trees = dendropy.TreeList.get_from_path(params.btrees, params.ftype, taxon_namespace = taxon_set)
+	else:
+		print("No bootstrap trees provided.")
 
 	#initialize some dictionaries
 	master_dict=dict()
@@ -34,12 +38,12 @@ def main():
 	split_dict=dict()
 	split_occ_dict=dict()
 
-	
 	#if bootstrap trees provided, get results for them
 	#master_dict:
 	#key = pair of edges
 	#value = list of anomaly zone results (1=True; 0=False)
 	if params.btrees:
+		print("Finding anomalous nodes in bootsteap trees...")
 		for sp_tree in trees:
 			#dendropy.treesplit.encode_splits(sp_tree) #deprecated
 			sp_tree.encode_bipartitions()
@@ -49,21 +53,34 @@ def main():
 
 	#sys.exit(0)
 	#get results for main tree
+	print("Finding anomalous nodes in primary tree...")
 	mrc.encode_bipartitions()
 	mrc_dict=get_nodes(mrc, mrc_dict) #get AZ results for primary tree
 	split_dict=split_mapper(mrc, taxon_set)  #match a list of taxa to the split pattern from the bitmask for the whole tree
 
+	print("\n######################ENCODING#############################\n")
+	
+	print("Writing results with splits encoded as:")
+	labelTree = getBitStringLabels(mrc, len(taxon_set))
+	labelTree.print_plot(show_internal_node_labels=True)
+	
+	print("(If tree is large, import the following into FigTree)\n")
+	print(labelTree.as_string(schema="newick"))
 
 	#if bootstrap trees provided:
 	#for each internal edge pair:
+	print("\n######################RESULTS##############################\n")
+	print("Showing anomalous nodes only:\n")
 	if params.btrees:
+		print("ParentEdge\tDescendantEdge\tProp.Anomalous")
+		seen=False
 		for k,v in master_dict.items():
 			taxlab1=list()
 			taxlab2=list()
 			#print(k[0])
 			#if edge pair has results for main tree
 			if k in mrc_dict.keys():
-				print("k:",k, "v:",v)
+				#print("k:",k, "v:",v)
 				#bitstring for parent node 
 				parentLabel = bitprocessing.int_as_bitstring(k[0], length=len(taxon_set))
 				#print(parentLabel)
@@ -79,14 +96,19 @@ def main():
 					taxlab1.append(i.label)
 				for j in descendantList:
 					taxlab2.append(j.label)
-				print(parentLabel, descendantLabel, "Prop. anomalous:",sum(v)/len(v))
-				print()
+				if sum(v) > 0:
+					seen=True
+					print(parentLabel, descendantLabel,sum(v)/len(v), sep="\t")
+		if seen==False:
+			print("No anomalous nodes detected.")
 	else:
+		print("ParentEdge\tDescendantEdge")
+		seen=False
 		for k,v in mrc_dict.items():
 			taxlab1=list()
 			taxlab2=list()
 			anom=False
-			print("k:",k, "v:",v)
+			#print("k:",k, "v:",v)
 			#bitstring for parent node 
 			parentLabel = bitprocessing.int_as_bitstring(k[0], length=len(taxon_set))
 			#print(parentLabel)
@@ -102,8 +124,97 @@ def main():
 				taxlab1.append(i.label)
 			for j in descendantList:
 				taxlab2.append(j.label)
-			print(parentLabel, descendantLabel, "Anomalous:",sum(v)/len(v))
-			print()
+			if sum(v) > 0:
+				seen=True
+				print(parentLabel, descendantLabel, sep="\t")
+		if seen==False:
+			print("No anomalous nodes detected.")
+	print("\n########################OUTPUT############################\n")
+
+	
+	if params.btrees:
+		print("Tree with anomalous pairs annotated as \"AZ Event : Prop. BS\"")
+		outTreeBS = getAnomalyLabelsBS(mrc, master_dict)
+		outTreeBS.print_plot(show_internal_node_labels=True)
+		
+		print("(If tree is large, import the following into FigTree)\n")
+		print(outTreeBS.as_string(schema="newick"))
+	else:
+		print("Tree with anomalous edge pairs annotated (AZ pairs numbered)")
+		outTree = getAnomalyLabels(mrc, mrc_dict)
+		outTree.print_plot(show_internal_node_labels=True)
+		
+		print("(If tree is large, import the following into FigTree)\n")
+		print(outTree.as_string(schema="newick"))
+
+	print("\n########################DONE!############################\n\n")
+	
+	
+
+
+#function returns tree with AZ edge pairs labelled
+def getAnomalyLabels(tree, d):
+	tree2 = tree.clone(depth=1)
+	labelDict = dict()
+	az_event = 1
+	for k,v in d.items():
+		#if AZ test positive
+		if sum(v) > 0:
+			for edge in k:
+				if str(edge) in labelDict:
+					#print("exists")
+					labelDict[str(edge)] = str(labelDict[str(edge)]) + "/" + str(az_event)
+				else:
+					labelDict[str(edge)] = str(az_event)
+			#increment event number
+			az_event += 1
+	for node in tree2.levelorder_node_iter():
+		if node.parent_node:
+			lab=str(node.edge.split_bitmask)
+			if lab in labelDict:
+				node.label=labelDict[str(lab)]
+			else:
+				node.label="0"
+		else:
+			node.label="0"
+	return(tree2)
+		
+#function returns tree with AZ edge pairs labelled
+def getAnomalyLabelsBS(tree, d):
+	tree2 = tree.clone(depth=1)
+	labelDict = dict()
+	bsDict = dict()
+	az_event = 1
+	for k,v in d.items():
+		#if AZ test positive
+		if sum(v) > 0:
+			for edge in k:
+				if str(edge) in labelDict:
+					#print("exists")
+					labelDict[str(edge)] = str(labelDict[str(edge)]) + "/" + str(az_event)
+					bsDict[str(edge)] = str(bsDict[str(edge)]) + "/" + str(sum(v)/len(v))
+				else:
+					labelDict[str(edge)] = str(az_event)
+					bsDict[str(edge)] = str(sum(v)/len(v))
+			#increment event number
+			az_event += 1
+	for node in tree2.levelorder_node_iter():
+		if node.parent_node:
+			lab=str(node.edge.split_bitmask)
+			if lab in labelDict:
+				node.label=labelDict[str(lab)] + ":" + bsDict[str(lab)]
+			else:
+				node.label="0:0"
+		else:
+			node.label="0:0"
+	return(tree2)
+#function returns tree with bitstring node labels 
+def getBitStringLabels(tree, l):
+	tree2 = tree.clone(depth=1)
+	for node in tree2.postorder_node_iter():
+		lab = "\"" + str(bitprocessing.int_as_bitstring(node.edge.split_bitmask, length=l)) + "\""
+		node.label=lab
+	return tree2
 
 #For a pair of edges, return 1 if anomalous; return 0 if not anomalous
 def anomaly_calc(nodes):
