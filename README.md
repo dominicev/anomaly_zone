@@ -30,7 +30,9 @@ $ ./anomaly_finder.py -h
 
 Usage:  ./anomaly_finder.py -t <treefile> -f <nexus or newick> 
 
-Description: anomaly_finder.py by CW Linkem
+Description: An implementation of the code from Linkem et al (2016)
+
+Citation: Linkem, C. W., Minin, V. N., & Leache, A. D. (2016). Detecting the anomaly zone in species trees and evidence for a misleading signal in higher-level skink phylogeny (Squamata: Scincidae). Systematic Biology, 65(3), 465-477.
 
 	Arguments:
 		-t	: Tree file 

@@ -291,7 +291,7 @@ class parseArgs():
 	def __init__(self):
 		#Define options
 		try:
-			options, remainder = getopt.getopt(sys.argv[1:], 't:f:b:h', \
+			options, remainder = getopt.getopt(sys.argv[1:], 't:f:b:hc', \
 			["help"])
 		except getopt.GetoptError as err:
 			print(err)
@@ -307,6 +307,8 @@ class parseArgs():
 		for o, a in options:
 			if o in ("-h", "-help", "--help"):
 				self.display_help("Exiting because help menu was called.")
+			if o =="-c":
+				self.display_citation()
 
 		#Second pass to set all args.
 		for opt, arg_raw in options:
@@ -316,7 +318,7 @@ class parseArgs():
 			#print(opt,arg)
 			if opt == "t":
 				self.tree = arg
-			elif opt in ('h', 'help'):
+			elif opt in ('h', 'help', 'c'):
 				pass
 			elif opt == "f":
 				if arg == "newick" or arg == "nexus":
@@ -341,16 +343,23 @@ class parseArgs():
 			print ("\n",message)
 		print ("\nanomaly_finder.py\n")
 		print ("\nUsage: ", sys.argv[0], "-t <treefile> -f <nexus or newick> \n")
-		print ("Description: anomaly_finder.py by CW Linkem")
-
+		print ("""Description: An implementation of the code from Linkem et al (2016)
+		
+Citation: Linkem, C. W., Minin, V. N., & Leache, A. D. (2016). Detecting the anomaly zone in species trees and evidence for a misleading signal in higher-level skink phylogeny (Squamata: Scincidae). Systematic Biology, 65(3), 465-477.""")
 		print("""
 	Arguments:
 		-t		: Tree file (branches scaled by coalescent units)
 		-b		: Tree file containing bootstrap trees, if being used
 		-f		: Format of tree file: "nexus" or "newick"
+		-c		: Displays citation information
 		-h		: Displays help menu
 
 """)
+		sys.exit()
+	
+	def display_citation(self):
+		print("\nCitation: Linkem, C. W., Minin, V. N., & Leache, A. D. (2016). Detecting the anomaly zone in species trees and evidence for a misleading signal in higher-level skink phylogeny (Squamata: Scincidae). Systematic Biology, 65(3), 465-477.\n")
+		
 		sys.exit()
 
 #Call main function
