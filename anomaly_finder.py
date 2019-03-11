@@ -17,43 +17,95 @@ import math
 from math import exp
 import dendropy
 import getopt
+from dendropy.utility import bitprocessing
 
 def main():
 	params = parseArgs()
 
-	taxon_set = dendropy.TaxonSet()
-	trees = dendropy.TreeList.get_from_path('mpest_boots.tre', "nexus", taxon_set = taxon_set)
-	mrc = dendropy.Tree.get_from_path('mpest_eMRC.tre', "nexus", taxon_set = taxon_set)
+	#read trees
+	taxon_set = dendropy.TaxonNamespace()
+	if params.btrees:
+		trees = dendropy.TreeList.get_from_path(params.btrees, params.ftype, taxon_namespace = taxon_set)
+	mrc = dendropy.Tree.get_from_path(src=params.tree, schema=params.ftype, taxon_namespace = taxon_set)
 
+	#initialize some dictionaries
 	master_dict=dict()
 	mrc_dict=dict()
+	split_dict=dict()
 	split_occ_dict=dict()
-	for sp_tree in trees:
-		dendropy.treesplit.encode_splits(sp_tree)
-		master_dict = get_nodes(sp_tree, master_dict)
-		split_occ_dict=split_freq(sp_tree, taxon_set, split_occ_dict)	
 
-	dendropy.treesplit.encode_splits(mrc)
-	split_dict=split_mapper(mrc, taxon_set) #match a list of taxa to the split pattern from the bitmask for the whole tree
-	mrc_dict=get_nodes(mrc, mrc_dict)
+	
+	#if bootstrap trees provided, get results for them
+	#master_dict:
+	#key = pair of edges
+	#value = list of anomaly zone results (1=True; 0=False)
+	if params.btrees:
+		for sp_tree in trees:
+			#dendropy.treesplit.encode_splits(sp_tree) #deprecated
+			sp_tree.encode_bipartitions()
+			#split_bitmasks = sp_tree.split_bitmask_edge_map.keys()
+			master_dict = get_nodes(sp_tree, master_dict)
+			split_occ_dict=split_freq(sp_tree, taxon_set, split_occ_dict)	
+
+	#sys.exit(0)
+	#get results for main tree
+	mrc.encode_bipartitions()
+	mrc_dict=get_nodes(mrc, mrc_dict) #get AZ results for primary tree
+	split_dict=split_mapper(mrc, taxon_set)  #match a list of taxa to the split pattern from the bitmask for the whole tree
 
 
-	for k,v in master_dict.iteritems():
-		taxlab1=list()
-		taxlab2=list()
-		if k in mrc_dict.keys():
-			tax1 = dendropy.treesplit.split_as_string(k[0], width = len(taxon_set))
-			tax11 = taxon_set.split_taxa_list(k[0])
-			tax2 = dendropy.treesplit.split_as_string(k[1], width = len(taxon_set))
-			tax22 = taxon_set.split_taxa_list(k[1])
-			for i in tax11:
+	#if bootstrap trees provided:
+	#for each internal edge pair:
+	if params.btrees:
+		for k,v in master_dict.items():
+			taxlab1=list()
+			taxlab2=list()
+			#print(k[0])
+			#if edge pair has results for main tree
+			if k in mrc_dict.keys():
+				print("k:",k, "v:",v)
+				#bitstring for parent node 
+				parentLabel = bitprocessing.int_as_bitstring(k[0], length=len(taxon_set))
+				#print(parentLabel)
+				#list of descendent taxa
+				parentList = taxon_set.bitmask_taxa_list(k[0])
+				#print(parentList)
+				#label for descendant edge
+				descendantLabel = bitprocessing.int_as_bitstring(k[1], length=len(taxon_set))
+				#list of descendant taxa
+				descendantList = taxon_set.bitmask_taxa_list(k[1])
+				#print(descendantList)
+				for i in parentList:
+					taxlab1.append(i.label)
+				for j in descendantList:
+					taxlab2.append(j.label)
+				print(parentLabel, descendantLabel, "Prop. anomalous:",sum(v)/len(v))
+				print()
+	else:
+		for k,v in mrc_dict.items():
+			taxlab1=list()
+			taxlab2=list()
+			anom=False
+			print("k:",k, "v:",v)
+			#bitstring for parent node 
+			parentLabel = bitprocessing.int_as_bitstring(k[0], length=len(taxon_set))
+			#print(parentLabel)
+			#list of descendent taxa
+			parentList = taxon_set.bitmask_taxa_list(k[0])
+			#print(parentList)
+			#label for descendant edge
+			descendantLabel = bitprocessing.int_as_bitstring(k[1], length=len(taxon_set))
+			#list of descendant taxa
+			descendantList = taxon_set.bitmask_taxa_list(k[1])
+			#print(descendantList)
+			for i in parentList:
 				taxlab1.append(i.label)
-			for j in tax22:
+			for j in descendantList:
 				taxlab2.append(j.label)
-				
-			print(tax1, tax2, len(v), sum(v))
+			print(parentLabel, descendantLabel, "Anomalous:",sum(v)/len(v))
+			print()
 
-
+#For a pair of edges, return 1 if anomalous; return 0 if not anomalous
 def anomaly_calc(nodes):
 	lambda1=nodes[0]
 	lambda2=nodes[1]
@@ -73,34 +125,50 @@ def split_mapper(tree, taxon_set):
 			node.value = 1.0
 		else:
 			taxlist=[]
-			tax = taxon_set.split_taxa_list(node.edge.split_bitmask)
+			tax = taxon_set.bitmask_taxa_list(node.edge.split_bitmask)
 			for i in tax:
 				taxlist.append(i.label)
-			split_dict[dendropy.treesplit.split_as_string(node.edge.split_bitmask, width=len(taxon_set))] = taxlist
+			split_dict[bitprocessing.int_as_bitstring(node.edge.split_bitmask, length=len(taxon_set))] = taxlist
 	return split_dict
 
+#function
 def split_freq(tree,taxon_set, split_occ_dict):
+	#for each node 
 	for node in tree.postorder_node_iter():
+		#if not root
 		if node.parent_node is None:
 			node.value = 1.0
 		else:
-			split=dendropy.treesplit.split_as_string(node.edge.split_bitmask, width=len(taxon_set))
+			#split=dendropy.treesplit.split_as_string(node.edge.split_bitmask, width=len(taxon_set)) #deprecated
+			split=bitprocessing.int_as_bitstring(node.edge.split_bitmask, length=len(taxon_set))
+			print(split)
 			if split not in split_occ_dict.keys():
 				split_occ_dict[split] = [1]
 			else:
 				split_occ_dict[split].append(1)
 	return split_occ_dict
-			
+	
+#Function tests for internal edge pairs under anomaly zone
+#modifies a dict where key = pair of edges; calue = list of results (1=true; 0=false)		
 def get_nodes(tree, master_dict):
 	pair_list=[]
+	#for each internal node
+	#calculate
 	for node in tree.postorder_node_iter():
 		if node.parent_node is None:
+			#root
 			node.value = 1.0
 		else:
+			#if not root, and internal node
 			if node.taxon is None:
+				#get edge length of parent, and own edge length
+				#x = parent; y = current
 				node_pair = (node.parent_node.edge_length, node.edge_length)
+				#calculate if pair of edges are under anomaly boundary
 				anomalous=anomaly_calc(node_pair)
+				#print(anomalous)
 				edge_pair = (node.parent_node.edge.split_bitmask, node.edge.split_bitmask)
+				#for edge pair, keep anomaly zone tests results
 				if edge_pair not in master_dict.keys():
 					master_dict[edge_pair] = [anomalous]
 				else:
@@ -112,7 +180,7 @@ class parseArgs():
 	def __init__(self):
 		#Define options
 		try:
-			options, remainder = getopt.getopt(sys.argv[1:], 't:f:h', \
+			options, remainder = getopt.getopt(sys.argv[1:], 't:f:b:h', \
 			["help"])
 		except getopt.GetoptError as err:
 			print(err)
@@ -120,7 +188,8 @@ class parseArgs():
 		#Default values for params
 		#Input params
 		self.tree=None
-		self.ftype=None
+		self.ftype="newick"
+		self.btrees=None
 
 
 		#First pass to see if help menu was called
@@ -139,7 +208,12 @@ class parseArgs():
 			elif opt in ('h', 'help'):
 				pass
 			elif opt == "f":
-				self.ftype =arg
+				if arg == "newick" or arg == "nexus":
+					self.ftype =arg
+				else:
+					self.display_help("Invalid option for -f",arg)
+			elif opt == "b":
+				self.btrees=arg
 			else:
 				assert False, "Unhandled option %r"%opt
 
@@ -161,6 +235,7 @@ class parseArgs():
 		print("""
 	Arguments:
 		-t		: Tree file (branches scaled by coalescent units)
+		-b		: Tree file containing bootstrap trees, if being used
 		-f		: Format of tree file: "nexus" or "newick"
 		-h		: Displays help menu
 
