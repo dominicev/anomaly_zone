@@ -139,6 +139,11 @@ def main():
 		
 		print("(If tree is large, import the following into FigTree)\n")
 		print(outTreeBS.as_string(schema="newick"))
+		with open(params.out, 'w') as fh:
+			l=outTreeBS.as_string(schema="newick")
+			l=l+"\n"
+			fh.write(l)
+		fh.close()
 	else:
 		print("Tree with anomalous edge pairs annotated (AZ pairs numbered)")
 		outTree = getAnomalyLabels(mrc, mrc_dict)
@@ -146,6 +151,11 @@ def main():
 		
 		print("(If tree is large, import the following into FigTree)\n")
 		print(outTree.as_string(schema="newick"))
+		with open(params.out, 'w') as fh:
+			l=outTree.as_string(schema="newick")
+			l=l+"\n"
+			fh.write(l)
+		fh.close()
 
 	print("\n########################DONE!############################\n\n")
 	
@@ -294,7 +304,7 @@ class parseArgs():
 	def __init__(self):
 		#Define options
 		try:
-			options, remainder = getopt.getopt(sys.argv[1:], 't:f:b:hc', \
+			options, remainder = getopt.getopt(sys.argv[1:], 't:f:b:hco:', \
 			["help"])
 		except getopt.GetoptError as err:
 			print(err)
@@ -304,6 +314,7 @@ class parseArgs():
 		self.tree=None
 		self.ftype="newick"
 		self.btrees=None
+		self.out="out.tre"
 
 
 		#First pass to see if help menu was called
@@ -330,6 +341,8 @@ class parseArgs():
 					self.display_help("Invalid option for -f",arg)
 			elif opt == "b":
 				self.btrees=arg
+			elif opt == "o":
+				self.out = arg
 			else:
 				assert False, "Unhandled option %r"%opt
 
@@ -355,6 +368,7 @@ Citation: Linkem, C. W., Minin, V. N., & Leache, A. D. (2016). Detecting the ano
 		-b		: Tree file containing bootstrap trees, if being used
 		-f		: Format of tree file: "nexus" or "newick"
 		-c		: Displays citation information
+		-o		: Output file name for annotated tree (default: out.tre)
 		-h		: Displays help menu
 
 """)
