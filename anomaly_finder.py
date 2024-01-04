@@ -234,7 +234,7 @@ def anomaly_calc(nodes):
 	lambda1=nodes[0]
 	lambda2=nodes[1]
 	if lambda1 is not None:
-		Z1=math.log(2.0/3+((3*exp(2*lambda1)-2)/(18*(exp(3*lambda1)-exp(2*lambda1))))) #function a(x) from Degnan and Rosenberg (2006)
+		Z1=math.log(2.0/3+((3*exp(2*lambda1)-2)/(18*(exp(3*lambda1)+0.000000000000001-exp(2*lambda1))))) #function a(x) from Degnan and Rosenberg (2006)
 		if lambda2 <= Z1:
 			return 1
 		else:
